@@ -4,8 +4,11 @@ console.log('server');
 console.log('testing')
 const { response, request } = require('express');
 const cors = require('cors');
+const axios = require('axios');
 // REQUIRE
 // use require instead of import
+
+// TODO: MODULE and Cache
 
 //to create a server we are bringing in Express
 const express = require('express');
@@ -28,44 +31,45 @@ const PORT = process.env.PORT || 3002
 
 // if my server is on 3002 we have a problem with .env or import
 
-// ROUTES 
-// we will use these to access our endpoints
-
-
-// the first argument is a URL in quotes
-// the second is the callback that defines what should happen  when a request comes into that url
-
-// example request: http:localhost:3001?city={this.state.userCityChoice}
-app.get('/?', (req, res, next) => {
+app.get('/city', async (req, res, next) => {
   try {
-    let userCity = req.query.city;
-    let forecastObject = data.find(obj => obj.city_name === userCity);
-    let forecastObjectData = forecastObject.data
-    let cityObject = forecastObjectData.map(obj => 
-      new Forecast(obj))
-    res.send(cityObject);
-
-    //res.send(selectedForecast);
+    let searchQuery = req.query.city;
+    let cityData = await axios.get(`https://us1.locationiq.com/v1/search?key=${process.env.REACT_APP_LOCATIONIQ_API_KEY}&q=${searchQuery}&format=json`);
+    let cityDataObject = cityData.data[0];
+    let cityDataToSend = new City(cityDataObject);
+    res.send(cityDataToSend);
  } catch(error) {
     next(error)
   }
-  // res.send(data)
 });
 
-app.get('/movie', (req, res, next) => {
+app.get('/movie', async (req, res, next) => {
   try {
-    let userCity = req.query.movieSearch;
-    console.log(userCity)
-    res.send(userCity)
-    
-    // res.send(cityObject);
-
-    //res.send(selectedForecast);
+    let searchQuery = req.query.city;
+    let movieData = await axios.get(`https://api.themoviedb.org/3/search/movie?api_key=${process.env.REACT_APP_MOVIE_API_KEY}&query=${searchQuery}`);
+    let movieDataObject = movieData.data.results
+    let trimmedMovieObjectArr = movieDataObject.map(obj => 
+      new Movie(obj))
+    res.send(trimmedMovieObjectArr);
  } catch(error) {
     next(error)
   }
-  // res.send(data)
 });
+app.get('/weather', async (req, res, next) => {
+  try {
+    let searchQuery = req.query;
+    let weatherData = await axios.get(`https://api.weatherbit.io/v2.0/forecast/daily?lat=${searchQuery.lat}&lon=${searchQuery.lon}&key=${process.env.REACT_APP_WEATHERBIT_API_KEY}&days=5`);
+    let weatherDataArr = weatherData.data.data;
+    let trimmedWeatherDataArr = weatherDataArr.map(obj => 
+      new Forecast(obj)
+    );    
+    res.send(trimmedWeatherDataArr);
+ } catch(error) {
+    next(error)
+  }
+});
+
+
 
 app.get('*', (req, res) => {
   res.send('The resource does not exist')
@@ -73,13 +77,31 @@ app.get('*', (req, res) => {
 
 // CLASSES (PASS IN AN OBJECT)
 // Create a class that will only hold filtered data
-
-class Forecast{
+class City{
   constructor(cityObject){
-    this.date = cityObject.datetime;
-    this.description = cityObject.weather.description;
+    this.name = cityObject.display_name,
+    this.lat = cityObject.lat,
+    this.lon = cityObject.lon
   }
 }
+
+class Movie{
+  constructor(movieObject){
+    this.title = movieObject.title,
+    this.description = movieObject.overview,
+    this.imageURL = movieObject.poster_path
+  }
+}
+
+class Forecast{
+  constructor(weatherObject){
+    this.date = weatherObject.datetime,
+    this.high = weatherObject.high_temp,
+    this.low = weatherObject.low_temp
+  }
+}
+
+
 
 // Error Handler
 app.use((error, request, response, next) => {
